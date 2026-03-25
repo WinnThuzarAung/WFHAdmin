@@ -1,49 +1,29 @@
 import customtkinter as ctk
-import mysql.connector
 from tkinter import messagebox
 from typing import Tuple, Optional
+from dashboard import Dashboard
 
 # Formal, modern theme setup
-ctk.set_appearance_mode("System")  # Options: "System", "Dark", "Light"
-ctk.set_default_color_theme("dark-blue")  # Options: "blue", "dark-blue", "green"
+ctk.set_appearance_mode("System")
+ctk.set_default_color_theme("dark-blue")
 
+# Mock user data
+MOCK_USERS = {
+    "admin": {"password": "admin", "role": "admin"},
+    "leader": {"password": "leader", "role": "leader"},
+    "member": {"password": "member", "role": "member"},
+}
 
 def verify_user(username: str, password: str) -> Tuple[bool, Optional[str]]:
-    """Check credentials against the database."""
-    try:
-        db = mysql.connector.connect(
-            user='root',
-            password='root',
-            host='127.0.0.1',
-            database='ministore',
-            auth_plugin='mysql_native_password'
-        )
-        cursor = db.cursor(dictionary=True)
-        cursor.execute(
-            "SELECT password, role FROM users WHERE user_name = %s",
-            (username,)
-        )
-        row = cursor.fetchone()
-        if row is None:
-            return False, None
-
-        # Basic plaintext comparison; update to hashing for production.
-        if password == row['password']:
-            return True, (row.get('role') or 'member').lower()
-        return False, None
-
-    except mysql.connector.Error as e:
-        messagebox.showerror("Database Error", f"Unable to verify user: {e}")
-        return False, None
-
-    finally:
-        if 'cursor' in locals() and cursor is not None:
-            cursor.close()
-        if 'db' in locals() and db is not None and db.is_connected():
-            db.close()
+    user = MOCK_USERS.get(username)
+    if user and user["password"] == password:
+        return True, user["role"]
+    return False, None
 
 
-class LoginPage(ctk.CTk):
+from dashboard import Dashboard
+
+class LoginWindow(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("MiniStore Enterprise Login")
@@ -88,16 +68,27 @@ class LoginPage(ctk.CTk):
 
         success, role = verify_user(username, password)
         if success:
-            messagebox.showinfo(
-                "Login Successful",
-                f"Welcome, {username} ({role})!\nRedirecting to the dashboard..."
-            )
-            self.destroy()
+            # messagebox.showinfo(
+            #     "Login Successful",
+            #     f"Welcome, {username} ({role})!\nRedirecting to the dashboard..."
+            # )
+            # self.destroy()
+            dashboard = Dashboard()
+            dashboard.current_role = role
+            dashboard.current_user = username
+            # Show the correct page by role
+            if role == "admin":
+                dashboard.show_dashboard()
+            elif role == "leader":
+                dashboard.show_tasks()
+            else:
+                dashboard.show_activity()
+            dashboard.mainloop()
         else:
             self.status_label.configure(text="Invalid username or password.")
             self.password_entry.delete(0, ctk.END)
 
 
 if __name__ == '__main__':
-    app = LoginPage()
+    app = LoginWindow()
     app.mainloop()
